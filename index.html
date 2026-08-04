@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
   <link rel="icon" href="./favicon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=2">
 </head>
 <body>
 <main class="shell">
@@ -30,6 +30,9 @@
       <label id="addressField" class="full">Адрес доставки<textarea id="customerAddress" rows="2" maxlength="250" placeholder="Например: Рабочая 33 9"></textarea><span class="help">Можно написать коротко: «Рабочая 33 9». Через секунду адрес будет исправлен.</span></label>
       <label class="full">Комментарий<textarea id="customerComment" rows="2" maxlength="400" placeholder="Например: позвонить за 5 минут"></textarea></label>
     </div>
+    <div class="checkout-toolbar">
+      <button id="editCart" class="button" type="button">Изменить корзину</button>
+    </div>
     <div id="checkoutTotals" style="margin-top:14px"></div>
     <button id="submitOrder" class="button primary" type="button" style="width:100%;margin-top:14px"><span class="spinner">Отправка…</span><span id="submitOrderLabel" class="label">Отправить заказ</span></button>
     <div id="feedback" class="feedback"></div>
@@ -43,5 +46,5 @@
   <div class="drawer-foot"><div id="cartTotals"></div><button id="goCheckout" class="button primary" type="button" style="width:100%;margin-top:12px">Перейти к оформлению</button></div>
 </aside>
 <script src="./config.js"></script>
-<script type="module" src="./app.js"></script>
+<script type="module" src="./app.js?v=2"></script>
 </body></html>
