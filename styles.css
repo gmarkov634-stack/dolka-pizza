@@ -34,3 +34,143 @@ img,svg,video,canvas{max-width:100%}
     padding-bottom:max(18px,env(safe-area-inset-bottom));
   }
 }
+
+
+/* Наглядная шкала статуса заказа */
+.error-badge{
+  border:1px solid #fecaca;
+  background:var(--errb);
+  color:var(--err);
+}
+.order-progress-block{
+  margin:18px 0;
+  border:1px solid var(--b);
+  border-radius:16px;
+  padding:16px 14px 14px;
+  background:#fafafa;
+}
+.progress-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.progress-percent{
+  color:var(--a);
+  font-size:13px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.order-progress{
+  --steps:5;
+  display:grid;
+  grid-template-columns:repeat(var(--steps),minmax(0,1fr));
+  align-items:start;
+}
+.progress-step{
+  position:relative;
+  min-width:0;
+  padding:36px 4px 0;
+  text-align:center;
+  color:#a1a1aa;
+}
+.progress-step::after{
+  content:"";
+  position:absolute;
+  z-index:0;
+  top:13px;
+  left:50%;
+  width:100%;
+  height:4px;
+  background:#e4e4e7;
+}
+.progress-step:last-child::after{
+  display:none;
+}
+.progress-dot{
+  position:absolute;
+  z-index:2;
+  top:0;
+  left:50%;
+  display:grid;
+  width:30px;
+  height:30px;
+  place-items:center;
+  transform:translateX(-50%);
+  border:3px solid #d4d4d8;
+  border-radius:50%;
+  background:#fff;
+  color:#a1a1aa;
+  font-size:12px;
+  font-weight:900;
+}
+.progress-label{
+  display:block;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.progress-step.done,
+.progress-step.current{
+  color:var(--t);
+}
+.progress-step.done::after{
+  background:var(--a);
+}
+.progress-step.done .progress-dot{
+  border-color:var(--a);
+  background:var(--a);
+  color:#fff;
+}
+.progress-step.current .progress-dot{
+  border-color:var(--a);
+  background:#fff7ed;
+  color:var(--a);
+  box-shadow:0 0 0 5px rgba(234,88,12,.12);
+}
+.progress-message{
+  margin-top:15px;
+  border-radius:12px;
+  background:#fff7ed;
+  padding:11px 12px;
+  color:#9a3412;
+  font-size:14px;
+  font-weight:700;
+  line-height:1.4;
+}
+.order-progress-block.cancelled{
+  border-color:#fecaca;
+  background:#fffafa;
+}
+.order-progress-block.cancelled .progress-percent,
+.order-progress-block.cancelled .progress-message{
+  color:var(--err);
+}
+.order-progress-block.cancelled .progress-message{
+  background:var(--errb);
+}
+.order-progress-block.pending .progress-message{
+  background:#f4f4f5;
+  color:var(--t);
+}
+
+@media(max-width:620px){
+  .order-progress-block{
+    padding-inline:10px;
+  }
+  .progress-step{
+    padding-inline:2px;
+  }
+  .progress-label{
+    font-size:10px;
+  }
+  .progress-dot{
+    width:28px;
+    height:28px;
+  }
+  .progress-step::after{
+    top:12px;
+  }
+}
