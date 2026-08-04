@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Админка — Долька</title>
+  <meta name="theme-color" content="#ea580c">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section id="login" class="card admin-login">
+      <h1>Вход в админку</h1>
+      <label>
+        Пароль
+        <input id="password" type="password" autocomplete="current-password">
+      </label>
+      <button id="loginButton" class="button primary" type="button" style="width:100%;margin-top:13px">
+        Войти
+      </button>
+      <div id="loginFeedback" class="feedback"></div>
+    </section>
+
+    <section id="main" class="admin-main">
+      <header class="topbar">
+        <div class="brand">
+          <h1>Управление пиццерией</h1>
+          <div class="meta">Заказы, меню и настройки</div>
+        </div>
+        <div class="actions">
+          <a class="button" href="./qr.html" target="_blank" rel="noopener">QR-код</a>
+          <a class="button" href="./" target="_blank" rel="noopener">Открыть сайт</a>
+          <button id="logout" class="button" type="button">Выйти</button>
+        </div>
+      </header>
+
+      <nav class="admin-tabs" aria-label="Разделы админки">
+        <button class="button admin-tab active" type="button" data-tab="ordersSection">Заказы</button>
+        <button class="button admin-tab" type="button" data-tab="productsSection">Меню</button>
+        <button class="button admin-tab" type="button" data-tab="settingsSection">Настройки</button>
+      </nav>
+
+      <section id="ordersSection" class="admin-section show card">
+        <div class="topbar">
+          <h2 style="margin:0">Заказы</h2>
+          <div class="actions">
+            <select id="filter" style="margin:0;width:auto">
+              <option value="">Все статусы</option>
+            </select>
+            <button id="refresh" class="button" type="button">Обновить</button>
+            <button id="export" class="button" type="button">Скачать CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Заказ</th>
+                <th>Время</th>
+                <th>Клиент</th>
+                <th>Получение</th>
+                <th>Оплата</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody id="orders"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="productsSection" class="admin-section card">
+        <div class="topbar">
+          <div>
+            <h2 style="margin:0">Меню</h2>
+            <div class="meta">Добавление, цена, фото и доступность товаров</div>
+          </div>
+          <button id="addProduct" class="button primary" type="button">Добавить товар</button>
+        </div>
+        <div id="productsAdmin" class="admin-stack"></div>
+      </section>
+
+      <section id="settingsSection" class="admin-section card">
+        <div class="topbar">
+          <div>
+            <h2 style="margin:0">Настройки</h2>
+            <div class="meta">Стоимость доставки, минимальный заказ и способы оплаты</div>
+          </div>
+          <button id="saveSettings" class="button primary" type="button">Сохранить</button>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            Название
+            <input id="businessName" maxlength="100">
+          </label>
+          <label>
+            Телефон
+            <input id="businessPhone" maxlength="50">
+          </label>
+          <label class="full">
+            Адрес самовывоза
+            <input id="businessAddress" maxlength="250">
+          </label>
+          <label>
+            Режим работы
+            <input id="workingHours" maxlength="100">
+          </label>
+          <label>
+            Доставка, ₽
+            <input id="deliveryPrice" type="number" min="0" step="1">
+          </label>
+          <label>
+            Минимальный заказ, ₽
+            <input id="minimumOrder" type="number" min="0" step="1">
+          </label>
+        </div>
+
+        <div class="admin-switches">
+          <label class="switch-row">
+            <input id="acceptOrders" type="checkbox">
+            <span><strong>Принимать заказы</strong><small>Если выключено, оформить заказ нельзя</small></span>
+          </label>
+          <label class="switch-row">
+            <input id="cashEnabled" type="checkbox">
+            <span><strong>Наличные при получении</strong></span>
+          </label>
+          <label class="switch-row">
+            <input id="cardEnabled" type="checkbox">
+            <span><strong>Карта при получении</strong></span>
+          </label>
+          <label class="switch-row">
+            <input id="sbpEnabled" type="checkbox">
+            <span><strong>Онлайн через СБП</strong><small>Показывается покупателю только после настройки ЮKassa</small></span>
+          </label>
+        </div>
+      </section>
+
+      <div id="feedback" class="feedback"></div>
+    </section>
+  </main>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+import{api,money,esc,phoneDigits,phoneFormat,saveAccess,normalizeAddress}from'./shared.js';
+const $=id=>document.getElementById(id);
+const state={settings:{},products:[],categories:[],category:'Все',cart:new Map(),pick:new Map(),submitting:false};
+const subtotal=()=>[...state.cart].reduce((s,[id,q])=>{const p=state.products.find(x=>x.id===id);return s+(p?p.priceKopecks*q:0)},0);
+const delivery=()=>$('deliveryType').value==='delivery'?Number(state.settings.deliveryPriceKopecks||0):0;
+const total=()=>subtotal()+delivery();
+function feedback(msg,type='error'){$('feedback').textContent=msg;$('feedback').className=`feedback show ${type}`}
+function clearFeedback(){$('feedback').textContent='';$('feedback').className='feedback'}
+function openCart(){$('drawer').classList.add('show');$('backdrop').classList.add('show')}
+function closeCart(){$('drawer').classList.remove('show');$('backdrop').classList.remove('show')}
+function renderCategories(){const a=['Все',...state.categories];$('categories').innerHTML=a.map(c=>`<button class="button category ${c===state.category?'active':''}" data-category="${esc(c)}">${esc(c)}</button>`).join('');$('categories').querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{state.category=b.dataset.category;renderCategories();renderProducts()})}
+function renderProducts(){
+ const rows=state.products.filter(p=>p.available&&(state.category==='Все'||p.category===state.category));
+ $('products').innerHTML=rows.map(p=>{const q=state.pick.get(p.id)||1;const pic=p.imageUrl?`<img src="${esc(p.imageUrl)}" alt="${esc(p.name)}" onerror="this.remove();this.parentElement.textContent='${esc(p.emoji||'🍕')}'">`:esc(p.emoji||'🍕');return `<article class="product"><div class="product-image">${pic}</div><div class="product-body"><h2>${esc(p.name)}</h2><div class="desc">${esc(p.description)}</div><div class="product-bottom"><span class="price">${money(p.priceKopecks)}</span><div class="buy"><div class="picker"><button data-minus="${esc(p.id)}">−</button><span data-value="${esc(p.id)}">${q}</span><button data-plus="${esc(p.id)}">+</button></div><button class="button primary" data-add="${esc(p.id)}">Добавить</button></div></div></div></article>`}).join('');
+ $('products').querySelectorAll('[data-minus]').forEach(b=>b.onclick=()=>changePick(b.dataset.minus,-1));
+ $('products').querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>changePick(b.dataset.plus,1));
+ $('products').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const id=b.dataset.add,q=state.pick.get(id)||1;state.cart.set(id,(state.cart.get(id)||0)+q);b.textContent=`Добавлено ×${q} ✓`;b.disabled=true;setTimeout(()=>{b.textContent='Добавить';b.disabled=false},700);renderCart()});
+}
+function changePick(id,d){const q=Math.max(1,Math.min(50,(state.pick.get(id)||1)+d));state.pick.set(id,q);const e=$('products').querySelector(`[data-value="${CSS.escape(id)}"]`);if(e)e.textContent=q}
+function changeCart(id,d){const q=(state.cart.get(id)||0)+d;if(q<=0)state.cart.delete(id);else state.cart.set(id,Math.min(q,99));renderCart()}
+function totalsHtml(){return `<div class="total-row"><span>Товары</span><strong>${money(subtotal())}</strong></div><div class="total-row"><span>Доставка</span><strong>${money(delivery())}</strong></div><div class="total-row final"><span>Итого</span><strong>${money(total())}</strong></div>`}
+function renderCart(){
+ const rows=[...state.cart];
+ $('cartLines').innerHTML=rows.length?rows.map(([id,q])=>{const p=state.products.find(x=>x.id===id);return p?`<div class="cart-line"><div><strong>${esc(p.name)}</strong><div class="help">${money(p.priceKopecks)} × ${q}</div></div><div class="cart-actions"><button class="mini" data-cminus="${esc(id)}">−</button><strong>${q}</strong><button class="mini" data-cplus="${esc(id)}">+</button></div></div>`:''}).join(''):'<div class="help">Корзина пока пуста.</div>';
+ $('cartLines').querySelectorAll('[data-cminus]').forEach(b=>b.onclick=()=>changeCart(b.dataset.cminus,-1));
+ $('cartLines').querySelectorAll('[data-cplus]').forEach(b=>b.onclick=()=>changeCart(b.dataset.cplus,1));
+ $('cartTotals').innerHTML=totalsHtml();$('checkoutTotals').innerHTML=totalsHtml();$('cartToggle').textContent=`Корзина · ${money(total())}`;$('submitOrderLabel').textContent=`Отправить заказ · ${money(total())}`;$('goCheckout').disabled=!rows.length;$('submitOrder').disabled=state.submitting||!rows.length||!state.settings.acceptOrders;
+ if(subtotal()>=Number(state.settings.minimumOrderKopecks||0)&&$('feedback').textContent.includes('Минимальная сумма'))clearFeedback();
+}
+function renderPayments(){const a=(state.settings.paymentMethods||[]).filter(x=>x.enabled);$('paymentType').innerHTML=a.map(x=>`<option value="${esc(x.code)}">${esc(x.name)}</option>`).join('');updatePaymentHint()}
+function updatePaymentHint(){const m=(state.settings.paymentMethods||[]).find(x=>x.code===$('paymentType').value);$('paymentHint').textContent=m?m.hint:''}
+function resizeAddress(){const e=$('customerAddress');e.style.height='auto';e.style.height=`${Math.min(Math.max(e.scrollHeight,78),190)}px`}
+function scheduleAddress(){resizeAddress();clearTimeout(scheduleAddress.timer);scheduleAddress.timer=setTimeout(()=>{const e=$('customerAddress'),v=e.value;if(/[\s,;]$/.test(v))return;const n=normalizeAddress(v);if(n&&n!==v)e.value=n;resizeAddress()},1000)}
+function payload(){
+ const name=$('customerName').value.trim(),d=phoneDigits($('customerPhone').value),type=$('deliveryType').value;let address=$('customerAddress').value.trim();
+ if(!name)throw new Error('Введите имя.');if(d.length!==10)throw new Error('Введите телефон полностью.');if(!state.cart.size)throw new Error('Корзина пуста.');
+ const min=Number(state.settings.minimumOrderKopecks||0);if(subtotal()<min)throw new Error(`Минимальная сумма заказа — ${money(min)}. Сейчас ${money(subtotal())}.`);
+ if(type==='delivery'){address=normalizeAddress(address);if(!address||!/д\.\s*\d+/i.test(address))throw new Error('Введите улицу и номер дома.');$('customerAddress').value=address}else address='';
+ return{customer:{name,phone:`+7 ${phoneFormat(d)}`,address,comment:$('customerComment').value.trim()},deliveryType:type,paymentType:$('paymentType').value,items:[...state.cart].map(([id,quantity])=>({id,quantity}))}
+}
+function success(r){const f=$('feedback');f.replaceChildren();f.className='feedback show ok';const t=document.createElement('strong');t.textContent=r.pendingPayment?'Платёж подготовлен. Заказ появится после успешной оплаты.':`Заказ ${r.orderId} принят.`;const d=document.createElement('div');d.style.marginTop='6px';d.textContent=`Сумма: ${money(r.totalKopecks)}.`;const a=document.createElement('div');a.className='success-actions';const link=document.createElement('a');link.className=r.confirmationUrl?'button primary':'button';link.href=r.confirmationUrl||`./status.html?order=${encodeURIComponent(r.orderId)}&token=${encodeURIComponent(r.trackingToken)}`;link.textContent=r.confirmationUrl?'Перейти к оплате СБП':'Проверить статус заказа';a.append(link);f.append(t,d,a)}
+async function submit(){clearFeedback();let p;try{p=payload()}catch(e){return feedback(e.message)}state.submitting=true;$('submitOrder').classList.add('loading');renderCart();try{const r=await api('/api/orders',{method:'POST',body:JSON.stringify(p)});saveAccess(r.orderId,r.trackingToken);state.cart.clear();renderCart();success(r)}catch(e){feedback(e.message==='Не удалось отправить заказ.'?'Не удалось отправить заказ. Попробуйте еще раз.':e.message)}finally{state.submitting=false;$('submitOrder').classList.remove('loading');renderCart()}}
+async function init(){try{const[s,p]=await Promise.all([api('/api/public/settings'),api('/api/public/products')]);state.settings=s;state.products=p;state.categories=[...new Set(p.map(x=>x.category))];$('businessName').textContent=s.businessName;$('businessMeta').textContent=`${s.workingHours} · ${s.phone}`;$('acceptBadge').textContent=s.acceptOrders?'Принимаем заказы':'Приём заказов закрыт';$('acceptBadge').className=`badge ${s.acceptOrders?'ok':'warn'}`;renderCategories();renderProducts();renderPayments();renderCart()}catch(e){$('products').innerHTML=`<div class="feedback show error">${esc(e.message)}</div>`}}
+$('customerPhone').oninput=e=>e.target.value=phoneFormat(e.target.value);$('deliveryType').onchange=()=>{$('addressField').classList.toggle('hidden',$('deliveryType').value!=='delivery');renderCart()};$('paymentType').onchange=updatePaymentHint;$('customerAddress').oninput=scheduleAddress;$('customerAddress').onblur=()=>{clearTimeout(scheduleAddress.timer);const e=$('customerAddress'),v=e.value;if(!/[\s,;]$/.test(v))e.value=normalizeAddress(v);resizeAddress()};$('cartToggle').onclick=openCart;$('closeCart').onclick=closeCart;$('backdrop').onclick=closeCart;$('goCheckout').onclick=()=>{closeCart();$('checkout').classList.add('show');$('checkout').scrollIntoView({behavior:'smooth'})};$('submitOrder').onclick=submit;init();

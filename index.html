@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Пиццерия Долька</title>
+  <meta name="theme-color" content="#ea580c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Долька">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
+  <link rel="icon" href="./favicon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand"><h1 id="businessName">Пиццерия Долька</h1><div id="businessMeta" class="meta">Загрузка…</div></div>
+    <div class="actions"><a class="button" href="./status.html">Проверить заказ</a><span id="acceptBadge" class="badge warn">Загрузка…</span></div>
+  </header>
+  <nav id="categories" class="categories"></nav>
+  <section id="products" class="products"></section>
+  <section id="checkout" class="checkout card">
+    <h2>Оформление заказа</h2>
+    <div class="form-grid">
+      <label>Имя<input id="customerName" maxlength="80" autocomplete="name"></label>
+      <label>Телефон<span class="phone"><span>+7</span><input id="customerPhone" inputmode="numeric" maxlength="13" autocomplete="tel-national" placeholder="953 949-06-02"></span></label>
+      <label>Получение<select id="deliveryType"><option value="delivery">Доставка</option><option value="pickup">Самовывоз</option></select></label>
+      <label>Оплата<select id="paymentType"></select><span id="paymentHint" class="help"></span></label>
+      <label id="addressField" class="full">Адрес доставки<textarea id="customerAddress" rows="2" maxlength="250" placeholder="Например: Рабочая 33 9"></textarea><span class="help">Можно написать коротко: «Рабочая 33 9». Через секунду адрес будет исправлен.</span></label>
+      <label class="full">Комментарий<textarea id="customerComment" rows="2" maxlength="400" placeholder="Например: позвонить за 5 минут"></textarea></label>
+    </div>
+    <div id="checkoutTotals" style="margin-top:14px"></div>
+    <button id="submitOrder" class="button primary" type="button" style="width:100%;margin-top:14px"><span class="spinner">Отправка…</span><span id="submitOrderLabel" class="label">Отправить заказ</span></button>
+    <div id="feedback" class="feedback"></div>
+  </section>
+</main>
+<button id="cartToggle" class="button primary cart-toggle" type="button">Корзина · 0 ₽</button>
+<div id="backdrop" class="backdrop"></div>
+<aside id="drawer" class="drawer">
+  <div class="drawer-head topbar" style="margin:0"><h2 style="margin:0">Корзина</h2><button id="closeCart" class="button" type="button">Закрыть</button></div>
+  <div id="cartLines" class="drawer-body"></div>
+  <div class="drawer-foot"><div id="cartTotals"></div><button id="goCheckout" class="button primary" type="button" style="width:100%;margin-top:12px">Перейти к оформлению</button></div>
+</aside>
+<script src="./config.js"></script>
+<script type="module" src="./app.js"></script>
+</body></html>

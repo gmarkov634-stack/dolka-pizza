@@ -1,0 +1,2 @@
+Загрузите в корень репозитория dolka-pizza все файлы и папку icons.
+После загрузки: Settings -> Pages -> Deploy from a branch -> main -> /(root).
