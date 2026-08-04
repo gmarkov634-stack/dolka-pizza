@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
   <link rel="icon" href="./favicon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=2">
+  <link rel="stylesheet" href="./styles.css?v=3">
 </head>
 <body>
 <main class="shell">
@@ -25,9 +25,9 @@
     <div class="form-grid">
       <label>Имя<input id="customerName" maxlength="80" autocomplete="name"></label>
       <label>Телефон<span class="phone"><span>+7</span><input id="customerPhone" inputmode="numeric" maxlength="13" autocomplete="tel-national" placeholder="953 949-06-02"></span></label>
-      <label>Получение<select id="deliveryType"><option value="delivery">Доставка</option><option value="pickup">Самовывоз</option></select></label>
+      <label>Получение<select id="deliveryType" required><option value="" selected disabled>Выберите способ получения</option><option value="delivery">Доставка</option><option value="pickup">Самовывоз</option></select></label>
       <label>Оплата<select id="paymentType"></select><span id="paymentHint" class="help"></span></label>
-      <label id="addressField" class="full">Адрес доставки<textarea id="customerAddress" rows="2" maxlength="250" placeholder="Например: Рабочая 33 9"></textarea><span class="help">Можно написать коротко: «Рабочая 33 9». Через секунду адрес будет исправлен.</span></label>
+      <label id="addressField" class="full hidden">Адрес доставки<textarea id="customerAddress" rows="2" maxlength="250" placeholder="Например: Рабочая 33 9"></textarea><span class="help">Можно написать коротко: «Рабочая 33 9». Через секунду адрес будет исправлен.</span></label>
       <label class="full">Комментарий<textarea id="customerComment" rows="2" maxlength="400" placeholder="Например: позвонить за 5 минут"></textarea></label>
     </div>
     <div class="checkout-toolbar">
@@ -46,5 +46,5 @@
   <div class="drawer-foot"><div id="cartTotals"></div><button id="goCheckout" class="button primary" type="button" style="width:100%;margin-top:12px">Перейти к оформлению</button></div>
 </aside>
 <script src="./config.js"></script>
-<script type="module" src="./app.js?v=2"></script>
+<script type="module" src="./app.js?v=3"></script>
 </body></html>

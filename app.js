@@ -18,7 +18,7 @@ function renderProducts(){
 }
 function changePick(id,d){const q=Math.max(1,Math.min(50,(state.pick.get(id)||1)+d));state.pick.set(id,q);const e=$('products').querySelector(`[data-value="${CSS.escape(id)}"]`);if(e)e.textContent=q}
 function changeCart(id,d){const q=(state.cart.get(id)||0)+d;if(q<=0)state.cart.delete(id);else state.cart.set(id,Math.min(q,99));renderCart()}
-function totalsHtml(){return `<div class="total-row"><span>Товары</span><strong>${money(subtotal())}</strong></div><div class="total-row"><span>Доставка</span><strong>${money(delivery())}</strong></div><div class="total-row final"><span>Итого</span><strong>${money(total())}</strong></div>`}
+function totalsHtml(){const type=$('deliveryType').value;const deliveryText=type==='delivery'?money(delivery()):type==='pickup'?money(0):'Не выбрано';return `<div class="total-row"><span>Товары</span><strong>${money(subtotal())}</strong></div><div class="total-row"><span>Доставка</span><strong>${deliveryText}</strong></div><div class="total-row final"><span>Итого</span><strong>${money(total())}</strong></div>`}
 function renderCart(){
  const rows=[...state.cart];
  $('cartLines').innerHTML=rows.length?rows.map(([id,q])=>{const p=state.products.find(x=>x.id===id);return p?`<div class="cart-line"><div><strong>${esc(p.name)}</strong><div class="help">${money(p.priceKopecks)} × ${q}</div></div><div class="cart-actions"><button class="mini" data-cminus="${esc(id)}">−</button><strong>${q}</strong><button class="mini" data-cplus="${esc(id)}">+</button></div></div>`:''}).join(''):'<div class="help">Корзина пока пуста.</div>';
@@ -33,7 +33,7 @@ function resizeAddress(){const e=$('customerAddress');e.style.height='auto';e.st
 function scheduleAddress(){resizeAddress();clearTimeout(scheduleAddress.timer);scheduleAddress.timer=setTimeout(()=>{const e=$('customerAddress'),v=e.value;if(/[\s,;]$/.test(v))return;const n=normalizeAddress(v);if(n&&n!==v)e.value=n;resizeAddress()},1000)}
 function payload(){
  const name=$('customerName').value.trim(),d=phoneDigits($('customerPhone').value),type=$('deliveryType').value;let address=$('customerAddress').value.trim();
- if(!name)throw new Error('Введите имя.');if(d.length!==10)throw new Error('Введите телефон полностью.');if(!state.cart.size)throw new Error('Корзина пуста.');
+ if(!name)throw new Error('Введите имя.');if(d.length!==10)throw new Error('Введите телефон полностью.');if(!state.cart.size)throw new Error('Корзина пуста.');if(!type)throw new Error('Выберите способ получения: доставка или самовывоз.');
  const min=Number(state.settings.minimumOrderKopecks||0);if(subtotal()<min)throw new Error(`Минимальная сумма заказа — ${money(min)}. Сейчас ${money(subtotal())}.`);
  if(type==='delivery'){address=normalizeAddress(address);if(!address||!/д\.\s*\d+/i.test(address))throw new Error('Введите улицу и номер дома.');$('customerAddress').value=address}else address='';
  return{customer:{name,phone:`+7 ${phoneFormat(d)}`,address,comment:$('customerComment').value.trim()},deliveryType:type,paymentType:$('paymentType').value,items:[...state.cart].map(([id,quantity])=>({id,quantity}))}
