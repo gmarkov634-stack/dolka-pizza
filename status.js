@@ -1,8 +1,26 @@
-import{api,money,esc,phoneDigits,phoneFormat,findAccess,latestAccess,removeAccess}from'./shared.js';
-const $=id=>document.getElementById(id);let token='';
-const dt=v=>{if(!v)return'—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(d)};
-function fail(m){$('feedback').textContent=m;$('feedback').className='feedback show error'}
-function access(id){const x=findAccess(id);token=x?x.trackingToken:'';$('phoneField').classList.toggle('hidden',!!token)}
+import{api,money,esc,phoneDigits,phoneFormat,findAccess,latestAccess,saveAccess}from'./shared.js?v=2';
+const $=id=>document.getElementById(id);
+let token='',savedPhone='',checking=false;
+
+const dt=v=>{
+  if(!v)return'—';
+  const d=new Date(v);
+  return Number.isNaN(d.getTime())
+    ?String(v)
+    :new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(d)
+};
+
+function fail(m){
+  $('feedback').textContent=m;
+  $('feedback').className='feedback show error';
+}
+
+function setStoredAccess(id){
+  const x=findAccess(id);
+  token=String(x?.trackingToken||'').trim();
+  savedPhone=phoneDigits(x?.phone||'');
+  $('phoneField').classList.toggle('hidden',Boolean(token||savedPhone));
+}
 
 function progressData(d){
   const pickup=String(d.deliveryLabel||'').startsWith('Самовывоз');
@@ -73,7 +91,9 @@ function renderProgress(d){
 
 function render(d){
   $('resultId').textContent=d.orderId;
-  $('created').textContent=d.pendingPayment?`Заявка создана: ${dt(d.createdAt)}`:`Заказ оформлен: ${dt(d.createdAt)}`;
+  $('created').textContent=d.pendingPayment
+    ?`Заявка создана: ${dt(d.createdAt)}`
+    :`Заказ оформлен: ${dt(d.createdAt)}`;
   $('status').textContent=d.status;
   $('status').className=`badge ${['Подтверждён','Завершён'].includes(d.status)?'ok':d.status==='Отменён'?'error-badge':'warn'}`;
   $('delivery').textContent=d.deliveryLabel;
@@ -88,5 +108,94 @@ function render(d){
   $('refresh').classList.remove('hidden');
   $('feedback').className='feedback';
 }
-async function check(){const id=$('orderId').value.trim().toUpperCase(),d=phoneDigits($('phone').value);if(!id)return fail('Введите номер заказа.');if(!token)access(id);const q=new URLSearchParams;if(token)q.set('token',token);else if(d.length===10)q.set('phone',`7${d}`);else return fail('Введите телефон, указанный при оформлении.');try{render(await api(`/api/orders/${encodeURIComponent(id)}/status?${q}`))}catch(e){if(token){removeAccess(id);token='';$('phoneField').classList.remove('hidden')}fail(e.message)}}
-const q=new URLSearchParams(location.search);let id=String(q.get('order')||'').trim().toUpperCase();token=String(q.get('token')||'').trim();if(!id){const x=latestAccess();if(x){id=x.orderId;token=x.trackingToken}}if(id)$('orderId').value=id;if(!token&&id)access(id);if(token)$('phoneField').classList.add('hidden');$('phone').oninput=e=>e.target.value=phoneFormat(e.target.value);$('orderId').oninput=e=>access(e.target.value.trim().toUpperCase());$('check').onclick=check;$('refresh').onclick=check;if(id&&token)setTimeout(check,0);
+
+async function requestStatus(id,accessToken,phone){
+  const q=new URLSearchParams();
+  if(accessToken)q.set('token',accessToken);
+  else if(phone)q.set('phone',`7${phone}`);
+  return api(`/api/orders/${encodeURIComponent(id)}/status?${q}`);
+}
+
+async function check(){
+  if(checking)return;
+  const id=$('orderId').value.trim().toUpperCase();
+  const enteredPhone=phoneDigits($('phone').value);
+
+  if(!id)return fail('Введите номер заказа.');
+  if(!token&&!savedPhone)setStoredAccess(id);
+
+  const phone=enteredPhone||savedPhone;
+  if(!token&&phone.length!==10){
+    $('phoneField').classList.remove('hidden');
+    return fail('Введите телефон, указанный при оформлении.');
+  }
+
+  checking=true;
+  $('check').disabled=true;
+  $('refresh').disabled=true;
+
+  try{
+    let data;
+    try{
+      data=await requestStatus(id,token,phone);
+    }catch(e){
+      // A saved phone is a fallback only when the stored token is genuinely rejected.
+      if(token&&phone.length===10&&[401,403,404].includes(Number(e.status||0))){
+        data=await requestStatus(id,'',phone);
+        token='';
+      }else{
+        throw e;
+      }
+    }
+
+    saveAccess(id,token,phone);
+    savedPhone=phone;
+    $('phoneField').classList.add('hidden');
+    render(data);
+  }catch(e){
+    // Temporary network/HTTP errors must not delete the device access key.
+    if([401,403,404].includes(Number(e.status||0))){
+      token='';
+      if(savedPhone.length!==10)$('phoneField').classList.remove('hidden');
+    }
+    const message=Number(e.status||0)>=500||!e.status
+      ?'Не удалось обновить статус. Сохранённый доступ не удалён — повторите через несколько секунд.'
+      :e.message;
+    fail(message);
+  }finally{
+    checking=false;
+    $('check').disabled=false;
+    $('refresh').disabled=false;
+  }
+}
+
+const q=new URLSearchParams(location.search);
+let id=String(q.get('order')||'').trim().toUpperCase();
+token=String(q.get('token')||'').trim();
+
+if(!id){
+  const x=latestAccess();
+  if(x){
+    id=String(x.orderId||'').trim().toUpperCase();
+    token=String(x.trackingToken||'').trim();
+    savedPhone=phoneDigits(x.phone||'');
+  }
+}
+
+if(id)$('orderId').value=id;
+
+if(id&&token){
+  const existing=findAccess(id);
+  savedPhone=phoneDigits(existing?.phone||'');
+  saveAccess(id,token,savedPhone);
+}else if(id){
+  setStoredAccess(id);
+}
+
+$('phoneField').classList.toggle('hidden',Boolean(token||savedPhone));
+$('phone').oninput=e=>e.target.value=phoneFormat(e.target.value);
+$('orderId').oninput=e=>setStoredAccess(e.target.value.trim().toUpperCase());
+$('check').onclick=check;
+$('refresh').onclick=check;
+
+if(id&&(token||savedPhone))setTimeout(check,0);
