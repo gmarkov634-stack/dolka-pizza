@@ -2,7 +2,7 @@ import{api,money,esc,phoneDigits,phoneFormat,findAccess,latestAccess,saveAccess}
 
 const $=id=>document.getElementById(id);
 const REFRESH_MS=20000;
-const TERMINAL_STATUSES=new Set(['Завершён','Отменён']);
+const TERMINAL_STATUSES=new Set(['Завершён','Выдан','Доставлен','Отменён']);
 
 let token='';
 let savedPhone='';
@@ -90,19 +90,27 @@ function progressData(order){
 
   const indexByStatus={
     'Новый':0,
+    'Принят':0,
+    'Заказ принят':0,
     'Подтверждён':0,
     'Готовится':1,
     'Готов':2,
     'Передан курьеру':pickup?2:3,
+    'Выдан':stages.length-1,
+    'Доставлен':stages.length-1,
     'Завершён':stages.length-1
   };
 
   const messages={
     'Новый':'Заказ получен и ожидает подтверждения.',
+    'Принят':'Заказ принят.',
+    'Заказ принят':'Заказ принят.',
     'Подтверждён':'Заказ подтверждён. Скоро начнём приготовление.',
     'Готовится':'Заказ сейчас готовится.',
     'Готов':pickup?'Заказ готов. Можно забирать.':'Заказ готов и ожидает передачи курьеру.',
     'Передан курьеру':'Заказ передан курьеру и уже в пути.',
+    'Выдан':'Заказ выдан. Спасибо за покупку!',
+    'Доставлен':'Заказ доставлен. Спасибо за покупку!',
     'Завершён':pickup?'Заказ выдан. Спасибо за покупку!':'Заказ доставлен. Спасибо за покупку!',
     'Отменён':'Заказ отменён.'
   };
@@ -112,7 +120,7 @@ function progressData(order){
     current:indexByStatus[order.status]??0,
     message:messages[order.status]||`Текущий статус: ${order.status}`,
     cancelled:order.status==='Отменён',
-    completed:order.status==='Завершён',
+    completed:['Завершён','Выдан','Доставлен'].includes(order.status),
     pending:!!order.pendingPayment
   };
 }
@@ -188,12 +196,15 @@ function renderProgress(order){
 }
 
 function render(order){
+  const scrollX=window.scrollX;
+  const scrollY=window.scrollY;
+
   $('resultId').textContent=order.orderId;
   $('created').textContent=order.pendingPayment
     ?`Заявка создана: ${dt(order.createdAt)}`
     :`Заказ оформлен: ${dt(order.createdAt)}`;
   $('status').textContent=order.status;
-  $('status').className=`badge ${['Подтверждён','Завершён'].includes(order.status)?'ok':order.status==='Отменён'?'error-badge':'warn'}`;
+  $('status').className=`badge ${['Подтверждён','Завершён','Выдан','Доставлен'].includes(order.status)?'ok':order.status==='Отменён'?'error-badge':'warn'}`;
   $('delivery').textContent=order.deliveryLabel;
   $('payment').textContent=order.paymentStatus;
   $('total').textContent=money(order.totalKopecks);
@@ -212,6 +223,8 @@ function render(order){
 
   currentTerminal=TERMINAL_STATUSES.has(order.status)
     ||order.paymentStatus==='Оплата отменена';
+
+  window.requestAnimationFrame(()=>window.scrollTo(scrollX,scrollY));
 }
 
 async function requestStatus(id,accessToken,phone){
@@ -358,6 +371,11 @@ for(const field of [$('orderId'),$('phone')]){
     }
   });
 }
+
+$('refreshStatus').addEventListener('click',()=>{
+  window.clearTimeout(manualTimer);
+  check();
+});
 
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){

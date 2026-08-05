@@ -351,3 +351,14 @@ img,svg,video,canvas{max-width:100%}
     transition:none!important;
   }
 }
+
+
+/* Ручное обновление статуса */
+.status-refresh-row{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:12px;
+}
+@media(max-width:620px){
+  .status-refresh-row .button{width:100%}
+}
