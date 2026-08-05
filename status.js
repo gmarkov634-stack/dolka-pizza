@@ -8,9 +8,7 @@ let token='';
 let savedPhone='';
 let checking=false;
 let pollTimeout=0;
-let countdownInterval=0;
 let manualTimer=0;
-let nextPollAt=0;
 let currentTerminal=false;
 let previousProgressKey='';
 
@@ -32,44 +30,19 @@ function clearFeedback(){
   $('feedback').textContent='';
 }
 
-function setAutoUpdate(text,countdown='',mode='idle'){
-  $('autoUpdate').className=`auto-update ${mode}`;
-  $('autoUpdateText').textContent=text;
-  $('countdown').textContent=countdown;
-}
+function setAutoUpdate(){}
 
 function clearPolling(){
   if(pollTimeout)window.clearTimeout(pollTimeout);
-  if(countdownInterval)window.clearInterval(countdownInterval);
   pollTimeout=0;
-  countdownInterval=0;
-  nextPollAt=0;
 }
 
-function updateCountdown(){
-  if(!nextPollAt)return;
-  const seconds=Math.max(0,Math.ceil((nextPollAt-Date.now())/1000));
-  $('countdown').textContent=`через ${seconds} сек`;
-}
 
 function schedulePolling(){
   clearPolling();
 
-  if(currentTerminal){
-    setAutoUpdate('Заказ завершён — автообновление остановлено','','done');
-    return;
-  }
+  if(currentTerminal||document.hidden)return;
 
-  if(document.hidden){
-    setAutoUpdate('Автообновление приостановлено','','paused');
-    return;
-  }
-
-  nextPollAt=Date.now()+REFRESH_MS;
-  setAutoUpdate('Статус обновляется автоматически','','active');
-  updateCountdown();
-
-  countdownInterval=window.setInterval(updateCountdown,1000);
   pollTimeout=window.setTimeout(()=>{
     check({automatic:true});
   },REFRESH_MS);

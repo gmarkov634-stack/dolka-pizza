@@ -177,71 +177,6 @@ img,svg,video,canvas{max-width:100%}
 
 
 /* Анимированная шкала и автообновление статуса */
-.auto-update{
-  display:flex;
-  min-height:46px;
-  align-items:center;
-  gap:9px;
-  margin-top:13px;
-  border:1px solid var(--b);
-  border-radius:13px;
-  padding:10px 12px;
-  background:#fafafa;
-  color:var(--m);
-  font-size:14px;
-  font-weight:700;
-}
-.auto-update-icon{
-  position:relative;
-  flex:0 0 auto;
-  width:12px;
-  height:12px;
-  border-radius:50%;
-  background:#a1a1aa;
-}
-.auto-update-countdown{
-  margin-left:auto;
-  white-space:nowrap;
-  color:var(--a);
-  font-variant-numeric:tabular-nums;
-}
-.auto-update.active{
-  border-color:#fed7aa;
-  background:#fff7ed;
-  color:#9a3412;
-}
-.auto-update.active .auto-update-icon{
-  background:var(--a);
-  box-shadow:0 0 0 0 rgba(234,88,12,.35);
-  animation:autoUpdatePulse 1.8s ease-out infinite;
-}
-.auto-update.loading .auto-update-icon{
-  width:16px;
-  height:16px;
-  border:2px solid #fed7aa;
-  border-top-color:var(--a);
-  background:transparent;
-  animation:autoUpdateSpin .8s linear infinite;
-}
-.auto-update.done{
-  border-color:#86efac;
-  background:var(--okb);
-  color:var(--ok);
-}
-.auto-update.done .auto-update-icon{
-  background:#22c55e;
-}
-.auto-update.error{
-  border-color:#fecaca;
-  background:var(--errb);
-  color:var(--err);
-}
-.auto-update.error .auto-update-icon{
-  background:var(--err);
-}
-.auto-update.paused{
-  opacity:.82;
-}
 
 .progress-step::before,
 .progress-step::after{
@@ -323,27 +258,10 @@ img,svg,video,canvas{max-width:100%}
   70%{transform:translateX(-50%) scale(1.12)}
   100%{transform:translateX(-50%) scale(1)}
 }
-@keyframes autoUpdatePulse{
-  0%{box-shadow:0 0 0 0 rgba(234,88,12,.35)}
-  70%,100%{box-shadow:0 0 0 8px rgba(234,88,12,0)}
-}
-@keyframes autoUpdateSpin{
-  to{transform:rotate(360deg)}
 }
 
-@media(max-width:620px){
-  .auto-update{
-    align-items:flex-start;
-    flex-wrap:wrap;
-  }
-  .auto-update-countdown{
-    width:100%;
-    margin-left:21px;
-  }
-}
 
 @media(prefers-reduced-motion:reduce){
-  .auto-update-icon,
   .progress-step::after,
   .progress-dot,
   .progress-dot::after{
