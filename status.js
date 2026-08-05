@@ -1,29 +1,89 @@
 import{api,money,esc,phoneDigits,phoneFormat,findAccess,latestAccess,saveAccess}from'./shared.js?v=2';
+
 const $=id=>document.getElementById(id);
-let token='',savedPhone='',checking=false;
+const REFRESH_MS=20000;
+const TERMINAL_STATUSES=new Set(['Завершён','Отменён']);
+
+let token='';
+let savedPhone='';
+let checking=false;
+let pollTimeout=0;
+let countdownInterval=0;
+let manualTimer=0;
+let nextPollAt=0;
+let currentTerminal=false;
+let previousProgressKey='';
 
 const dt=v=>{
   if(!v)return'—';
   const d=new Date(v);
   return Number.isNaN(d.getTime())
     ?String(v)
-    :new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(d)
+    :new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(d);
 };
 
-function fail(m){
-  $('feedback').textContent=m;
+function fail(message){
+  $('feedback').textContent=message;
   $('feedback').className='feedback show error';
 }
 
+function clearFeedback(){
+  $('feedback').className='feedback';
+  $('feedback').textContent='';
+}
+
+function setAutoUpdate(text,countdown='',mode='idle'){
+  $('autoUpdate').className=`auto-update ${mode}`;
+  $('autoUpdateText').textContent=text;
+  $('countdown').textContent=countdown;
+}
+
+function clearPolling(){
+  if(pollTimeout)window.clearTimeout(pollTimeout);
+  if(countdownInterval)window.clearInterval(countdownInterval);
+  pollTimeout=0;
+  countdownInterval=0;
+  nextPollAt=0;
+}
+
+function updateCountdown(){
+  if(!nextPollAt)return;
+  const seconds=Math.max(0,Math.ceil((nextPollAt-Date.now())/1000));
+  $('countdown').textContent=`через ${seconds} сек`;
+}
+
+function schedulePolling(){
+  clearPolling();
+
+  if(currentTerminal){
+    setAutoUpdate('Заказ завершён — автообновление остановлено','','done');
+    return;
+  }
+
+  if(document.hidden){
+    setAutoUpdate('Автообновление приостановлено','','paused');
+    return;
+  }
+
+  nextPollAt=Date.now()+REFRESH_MS;
+  setAutoUpdate('Статус обновляется автоматически','','active');
+  updateCountdown();
+
+  countdownInterval=window.setInterval(updateCountdown,1000);
+  pollTimeout=window.setTimeout(()=>{
+    check({automatic:true});
+  },REFRESH_MS);
+}
+
 function setStoredAccess(id){
-  const x=findAccess(id);
-  token=String(x?.trackingToken||'').trim();
-  savedPhone=phoneDigits(x?.phone||'');
+  const access=findAccess(id);
+  token=String(access?.trackingToken||'').trim();
+  savedPhone=phoneDigits(access?.phone||'');
   $('phoneField').classList.toggle('hidden',Boolean(token||savedPhone));
 }
 
-function progressData(d){
-  const pickup=String(d.deliveryLabel||'').startsWith('Самовывоз');
+function progressData(order){
+  const pickup=String(order.deliveryLabel||'').startsWith('Самовывоз');
   const stages=pickup
     ?['Заказ принят','Готовится','Готов','Выдан']
     :['Заказ принят','Готовится','Готов','Передан курьеру','Доставлен'];
@@ -49,136 +109,221 @@ function progressData(d){
 
   return{
     stages,
-    current:indexByStatus[d.status]??0,
-    message:messages[d.status]||`Текущий статус: ${d.status}`,
-    cancelled:d.status==='Отменён',
-    pending:!!d.pendingPayment
+    current:indexByStatus[order.status]??0,
+    message:messages[order.status]||`Текущий статус: ${order.status}`,
+    cancelled:order.status==='Отменён',
+    completed:order.status==='Завершён',
+    pending:!!order.pendingPayment
   };
 }
 
-function renderProgress(d){
-  const data=progressData(d);
+function animateProgress(progress){
+  progress.classList.remove('animate-in');
+  void progress.offsetWidth;
+  progress.classList.add('animate-in');
+}
+
+function renderProgress(order){
+  const data=progressData(order);
   const block=$('progressBlock');
   const progress=$('orderProgress');
   const message=$('progressMessage');
   const percent=$('progressPercent');
+  const progressKey=[
+    order.status,
+    order.deliveryLabel,
+    order.paymentStatus,
+    order.updatedAt
+  ].join('|');
+  const shouldAnimate=progressKey!==previousProgressKey;
+  previousProgressKey=progressKey;
 
   block.classList.toggle('cancelled',data.cancelled);
   block.classList.toggle('pending',data.pending);
+  block.classList.toggle('completed',data.completed);
 
   if(data.pending){
     progress.style.setProperty('--steps','1');
-    progress.innerHTML='<div class="progress-step current" aria-current="step"><span class="progress-dot">1</span><span class="progress-label">Ожидает оплаты</span></div>';
+    progress.innerHTML=`
+      <div class="progress-step current" aria-current="step" style="--step-index:0">
+        <span class="progress-dot">1</span>
+        <span class="progress-label">Ожидает оплаты</span>
+      </div>`;
     percent.textContent='';
-    message.textContent=d.paymentStatus==='Оплата отменена'
+    message.textContent=order.paymentStatus==='Оплата отменена'
       ?'Оплата отменена. Заказ не передан на кухню.'
       :'После успешной оплаты заказ будет передан на кухню.';
+    if(shouldAnimate)animateProgress(progress);
     return;
   }
 
   progress.style.setProperty('--steps',String(data.stages.length));
   progress.innerHTML=data.stages.map((label,index)=>{
-    const cls=data.cancelled?'':index<data.current?'done':index===data.current?'current':'';
-    const mark=index<data.current?'✓':String(index+1);
+    const classes=[];
+    const finalStep=data.completed&&index===data.current;
+
+    if(!data.cancelled){
+      if(index<data.current)classes.push('done');
+      if(index===data.current)classes.push('current');
+      if(finalStep)classes.push('complete');
+      if(!data.completed&&data.current>0&&index===data.current-1)classes.push('leading');
+    }
+
+    const passed=index<data.current||finalStep;
+    const mark=passed?'✓':String(index+1);
     const current=index===data.current&&!data.cancelled?' aria-current="step"':'';
-    return `<div class="progress-step ${cls}"${current}><span class="progress-dot">${mark}</span><span class="progress-label">${esc(label)}</span></div>`;
+
+    return `
+      <div class="progress-step ${classes.join(' ')}"${current} style="--step-index:${index}">
+        <span class="progress-dot">${mark}</span>
+        <span class="progress-label">${esc(label)}</span>
+      </div>`;
   }).join('');
 
   const completed=data.cancelled?0:data.current+1;
   percent.textContent=data.cancelled?'Отменён':`${completed} из ${data.stages.length}`;
   message.textContent=data.message;
+
+  if(shouldAnimate)animateProgress(progress);
 }
 
-function render(d){
-  $('resultId').textContent=d.orderId;
-  $('created').textContent=d.pendingPayment
-    ?`Заявка создана: ${dt(d.createdAt)}`
-    :`Заказ оформлен: ${dt(d.createdAt)}`;
-  $('status').textContent=d.status;
-  $('status').className=`badge ${['Подтверждён','Завершён'].includes(d.status)?'ok':d.status==='Отменён'?'error-badge':'warn'}`;
-  $('delivery').textContent=d.deliveryLabel;
-  $('payment').textContent=d.paymentStatus;
-  $('total').textContent=money(d.totalKopecks);
-  $('updated').textContent=dt(d.updatedAt);
-  $('pay').classList.toggle('hidden',!d.paymentUrl||d.paymentStatus==='Оплачено');
-  if(d.paymentUrl)$('pay').href=d.paymentUrl;
-  renderProgress(d);
-  $('items').innerHTML='<strong>Состав</strong>'+d.items.map(i=>`<div class="order-item"><span>${esc(i.name)} × ${i.quantity}</span><strong>${money(i.lineTotalKopecks)}</strong></div>`).join('');
+function render(order){
+  $('resultId').textContent=order.orderId;
+  $('created').textContent=order.pendingPayment
+    ?`Заявка создана: ${dt(order.createdAt)}`
+    :`Заказ оформлен: ${dt(order.createdAt)}`;
+  $('status').textContent=order.status;
+  $('status').className=`badge ${['Подтверждён','Завершён'].includes(order.status)?'ok':order.status==='Отменён'?'error-badge':'warn'}`;
+  $('delivery').textContent=order.deliveryLabel;
+  $('payment').textContent=order.paymentStatus;
+  $('total').textContent=money(order.totalKopecks);
+  $('updated').textContent=dt(order.updatedAt);
+  $('pay').classList.toggle('hidden',!order.paymentUrl||order.paymentStatus==='Оплачено');
+  if(order.paymentUrl)$('pay').href=order.paymentUrl;
+
+  renderProgress(order);
+
+  $('items').innerHTML='<strong>Состав</strong>'+order.items.map(item=>
+    `<div class="order-item"><span>${esc(item.name)} × ${item.quantity}</span><strong>${money(item.lineTotalKopecks)}</strong></div>`
+  ).join('');
+
   $('result').classList.remove('hidden');
-  $('refresh').classList.remove('hidden');
-  $('feedback').className='feedback';
+  clearFeedback();
+
+  currentTerminal=TERMINAL_STATUSES.has(order.status)
+    ||order.paymentStatus==='Оплата отменена';
 }
 
 async function requestStatus(id,accessToken,phone){
-  const q=new URLSearchParams();
-  if(accessToken)q.set('token',accessToken);
-  else if(phone)q.set('phone',`7${phone}`);
-  return api(`/api/orders/${encodeURIComponent(id)}/status?${q}`);
+  const query=new URLSearchParams();
+  if(accessToken)query.set('token',accessToken);
+  else if(phone)query.set('phone',`7${phone}`);
+  return api(`/api/orders/${encodeURIComponent(id)}/status?${query}`);
 }
 
-async function check(){
+async function check({automatic=false}={}){
   if(checking)return;
+
+  clearPolling();
+
   const id=$('orderId').value.trim().toUpperCase();
   const enteredPhone=phoneDigits($('phone').value);
 
-  if(!id)return fail('Введите номер заказа.');
+  if(!id){
+    setAutoUpdate('Введите номер заказа','','idle');
+    return;
+  }
+
   if(!token&&!savedPhone)setStoredAccess(id);
 
   const phone=enteredPhone||savedPhone;
   if(!token&&phone.length!==10){
     $('phoneField').classList.remove('hidden');
-    return fail('Введите телефон, указанный при оформлении.');
+    setAutoUpdate('Введите телефон для автоматической проверки','','idle');
+    if(!automatic)fail('Введите телефон, указанный при оформлении.');
+    return;
   }
 
   checking=true;
-  $('check').disabled=true;
-  $('refresh').disabled=true;
+  setAutoUpdate('Обновляем статус…','','loading');
 
   try{
-    let data;
+    let order;
+
     try{
-      data=await requestStatus(id,token,phone);
-    }catch(e){
-      // A saved phone is a fallback only when the stored token is genuinely rejected.
-      if(token&&phone.length===10&&[401,403,404].includes(Number(e.status||0))){
-        data=await requestStatus(id,'',phone);
+      order=await requestStatus(id,token,phone);
+    }catch(error){
+      if(token&&phone.length===10&&[401,403,404].includes(Number(error.status||0))){
+        order=await requestStatus(id,'',phone);
         token='';
       }else{
-        throw e;
+        throw error;
       }
     }
 
     saveAccess(id,token,phone);
     savedPhone=phone;
     $('phoneField').classList.add('hidden');
-    render(data);
-  }catch(e){
-    // Temporary network/HTTP errors must not delete the device access key.
-    if([401,403,404].includes(Number(e.status||0))){
+    render(order);
+    schedulePolling();
+  }catch(error){
+    const status=Number(error.status||0);
+
+    if([401,403,404].includes(status)){
       token='';
       if(savedPhone.length!==10)$('phoneField').classList.remove('hidden');
     }
-    const message=Number(e.status||0)>=500||!e.status
-      ?'Не удалось обновить статус. Сохранённый доступ не удалён — повторите через несколько секунд.'
-      :e.message;
+
+    const temporary=status>=500||!status;
+    const message=temporary
+      ?'Не удалось обновить статус. Повторим автоматически через 20 секунд.'
+      :error.message;
+
     fail(message);
+
+    if(temporary&&(token||savedPhone.length===10||phone.length===10)){
+      currentTerminal=false;
+      schedulePolling();
+    }else{
+      setAutoUpdate('Автообновление ожидает данных','','error');
+    }
   }finally{
     checking=false;
-    $('check').disabled=false;
-    $('refresh').disabled=false;
   }
 }
 
-const q=new URLSearchParams(location.search);
-let id=String(q.get('order')||'').trim().toUpperCase();
-token=String(q.get('token')||'').trim();
+function queueManualCheck(){
+  window.clearTimeout(manualTimer);
+  clearPolling();
+
+  const id=$('orderId').value.trim().toUpperCase();
+  if(!id){
+    setAutoUpdate('Введите номер заказа','','idle');
+    return;
+  }
+
+  setStoredAccess(id);
+  const phone=phoneDigits($('phone').value)||savedPhone;
+
+  if(token||phone.length===10){
+    setAutoUpdate('Подготавливаем автоматическую проверку…','','loading');
+    manualTimer=window.setTimeout(()=>check(),650);
+  }else{
+    $('phoneField').classList.remove('hidden');
+    setAutoUpdate('Введите телефон для автоматической проверки','','idle');
+  }
+}
+
+const query=new URLSearchParams(location.search);
+let id=String(query.get('order')||'').trim().toUpperCase();
+token=String(query.get('token')||'').trim();
 
 if(!id){
-  const x=latestAccess();
-  if(x){
-    id=String(x.orderId||'').trim().toUpperCase();
-    token=String(x.trackingToken||'').trim();
-    savedPhone=phoneDigits(x.phone||'');
+  const access=latestAccess();
+  if(access){
+    id=String(access.orderId||'').trim().toUpperCase();
+    token=String(access.trackingToken||'').trim();
+    savedPhone=phoneDigits(access.phone||'');
   }
 }
 
@@ -193,9 +338,43 @@ if(id&&token){
 }
 
 $('phoneField').classList.toggle('hidden',Boolean(token||savedPhone));
-$('phone').oninput=e=>e.target.value=phoneFormat(e.target.value);
-$('orderId').oninput=e=>setStoredAccess(e.target.value.trim().toUpperCase());
-$('check').onclick=check;
-$('refresh').onclick=check;
 
-if(id&&(token||savedPhone))setTimeout(check,0);
+$('phone').oninput=event=>{
+  event.target.value=phoneFormat(event.target.value);
+  queueManualCheck();
+};
+
+$('orderId').oninput=event=>{
+  event.target.value=event.target.value.toUpperCase();
+  queueManualCheck();
+};
+
+for(const field of [$('orderId'),$('phone')]){
+  field.addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      window.clearTimeout(manualTimer);
+      check();
+    }
+  });
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    clearPolling();
+    setAutoUpdate('Автообновление приостановлено','','paused');
+    return;
+  }
+
+  const currentId=$('orderId').value.trim();
+  const phone=phoneDigits($('phone').value)||savedPhone;
+  if(currentId&&(token||phone.length===10))check({automatic:true});
+});
+
+window.addEventListener('pagehide',clearPolling);
+
+if(id&&(token||savedPhone)){
+  window.setTimeout(()=>check({automatic:true}),0);
+}else{
+  setAutoUpdate('Введите номер заказа и телефон','','idle');
+}
