@@ -31,6 +31,8 @@ async function request(path, options = {}) {
   return body;
 }
 
+window.dolkaAdminApi = request;
+
 function setLoggedIn(value) {
   $('login').classList.toggle('hidden', value);
   $('main').classList.toggle('show', value);
@@ -250,6 +252,7 @@ async function loadSettings() {
     $('deliveryPrice').value = settings.deliveryPriceRubles ?? 0;
     $('minimumOrder').value = settings.minimumOrderRubles ?? 0;
     $('acceptOrders').checked = Boolean(settings.acceptOrders);
+    $('inventoryEnabled').checked = Boolean(settings.inventoryEnabled);
     $('cashEnabled').checked = Boolean(settings.cashEnabled);
     $('cardEnabled').checked = Boolean(settings.cardOnDeliveryEnabled);
     $('sbpEnabled').checked = Boolean(settings.sbpEnabled);
@@ -270,6 +273,7 @@ async function saveSettings() {
         deliveryPriceRubles: Number($('deliveryPrice').value || 0),
         minimumOrderRubles: Number($('minimumOrder').value || 0),
         acceptOrders: $('acceptOrders').checked,
+        inventoryEnabled: $('inventoryEnabled').checked,
         cashEnabled: $('cashEnabled').checked,
         cardOnDeliveryEnabled: $('cardEnabled').checked,
         sbpEnabled: $('sbpEnabled').checked

@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#ea580c">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./inventory-admin.css?v=2">
 </head>
 <body>
   <main class="shell">
@@ -126,6 +127,10 @@
             <span><strong>Принимать заказы</strong><small>Если выключено, оформить заказ нельзя</small></span>
           </label>
           <label class="switch-row">
+            <input id="inventoryEnabled" type="checkbox">
+            <span><strong>Автоматический складской учёт</strong><small>Включайте после внесения фактических остатков. При нехватке сырья товар станет недоступен.</small></span>
+          </label>
+          <label class="switch-row">
             <input id="cashEnabled" type="checkbox">
             <span><strong>Наличные при получении</strong></span>
           </label>
@@ -145,6 +150,7 @@
   </main>
 
   <script src="./config.js"></script>
-  <script type="module" src="./admin.js"></script>
+  <script type="module" src="./admin.js?v=3"></script>
+  <script type="module" src="./inventory-admin.js?v=2"></script>
 </body>
 </html>
