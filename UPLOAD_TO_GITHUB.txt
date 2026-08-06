@@ -1,2 +1,16 @@
-Загрузите в корень репозитория dolka-pizza все файлы и папку icons.
-После загрузки: Settings -> Pages -> Deploy from a branch -> main -> /(root).
+ГОТОВАЯ ВЕРСИЯ САЙТА «ДОЛЬКА»
+
+1. Распакуйте архив dolka-pizza-ready.zip.
+2. Откройте репозиторий dolka-pizza на GitHub.
+3. Загрузите ВСЕ файлы из распакованной папки в корень репозитория с заменой существующих.
+4. Дождитесь успешной публикации GitHub Pages.
+5. Сначала разверните обновлённый dolka-server, затем обновляйте сайт.
+
+Новые файлы:
+- inventory-admin.js
+- inventory-admin.css
+- README_INVENTORY.md
+
+Изменены:
+- admin.html
+- admin.js
